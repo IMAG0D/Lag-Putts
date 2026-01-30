@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lag Putts Tracker</title>
+  <style>
+    :root { --bg:#0b0f14; --card:#121826; --text:#e6edf3; --muted:#9aa4b2; --accent:#3b82f6; --good:#22c55e; --line:#223044; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--text); }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 18px; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    .grid { display:grid; gap:12px; grid-template-columns: 1fr; }
+    @media (min-width: 860px){ .grid { grid-template-columns: 360px 1fr; align-items:start; } }
+    .card { background:var(--card); border:1px solid var(--line); border-radius: 14px; padding: 14px; box-shadow: 0 8px 18px rgba(0,0,0,.25); }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom:1px solid var(--line); }
+    th { text-align:left; color:var(--muted); font-weight:600; }
+    input[type="number"] { width: 90px; padding:8px; border-radius:10px; border:1px solid var(--line); background:#0e1420; color:var(--text); }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    label { color: var(--muted); font-size: 12px; display:block; margin-bottom:6px; }
+    select, input[type="text"] { padding:10px; border-radius:10px; border:1px solid var(--line); background:#0e1420; color:var(--text); min-width: 160px; }
+    .btn { cursor:pointer; border:0; padding: 12px 14px; border-radius: 12px; background: var(--accent); color: white; font-weight:700; }
+    .btn.secondary { background: transparent; border:1px solid var(--line); color: var(--text); }
+    .btn.danger { background:#ef4444; }
+    .total { font-size: 22px; font-weight: 800; margin-left:auto; }
+    .pill { font-size: 12px; padding: 6px 10px; border-radius: 999px; border:1px solid var(--line); color: var(--muted); }
+    .ok { color: var(--good); border-color: rgba(34,197,94,.35); }
+    .muted { color: var(--muted); }
+    .ledger th, .ledger td { padding: 8px 8px; }
+    .right { text-align:right; }
+    .topstats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 10px; }
+    .stat { background:#0e1420; border:1px solid var(--line); border-radius: 12px; padding:10px 12px; min-width: 160px;}
+    .stat .k { color: var(--muted); font-size: 12px; }
+    .stat .v { font-size: 18px; font-weight: 800; margin-top: 3px; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.35; }
+    .tag21 { font-weight:800; color: var(--good); }
+    .small { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Lag Putts Game Tracker</h1>
+
+    <div class="grid">
+      <!-- Entry -->
+      <div class="card">
+        <div class="row" style="justify-content:space-between; margin-bottom:8px;">
+          <div class="pill">Entry</div>
+          <div id="attemptPill" class="pill"></div>
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>Hole</th><th class="right">Putts</th></tr>
+          </thead>
+          <tbody id="holesBody"></tbody>
+          <tfoot>
+            <tr>
+              <td><strong>Total</strong></td>
+              <td class="right"><span id="total" class="total">0</span></td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="margin-top:12px;" class="row">
+          <div>
+            <label>Speed (1–4)</label>
+            <select id="speed">
+              <option value="">—</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Moisture</label>
+            <select id="moisture">
+              <option value="">—</option>
+              <option>dry</option><option>damp</option><option>wet</option>
+            </select>
+          </div>
+
+          <div>
+            <label id="d3Label">Dropdown 3</label>
+            <select id="d3">
+              <option value="">—</option>
+              <option>option A</option>
+              <option>option B</option>
+              <option>option C</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:14px;">
+          <button class="btn" id="logBtn">Log</button>
+          <button class="btn secondary" id="clearBtn">Clear</button>
+          <span id="status" class="muted small"></span>
+        </div>
+
+        <div class="hint">
+          Logs: <span class="tag21">date/time</span>, total, dropdowns, and the attempt number for that day.  
+          Data is saved in your browser (LocalStorage).
+        </div>
+      </div>
+
+      <!-- Ledger -->
+      <div class="card">
+        <div class="row" style="justify-content:space-between; margin-bottom:10px;">
+          <div class="pill">Ledger</div>
+          <div class="row">
+            <button class="btn secondary" id="exportBtn">Export JSON</button>
+            <label class="btn secondary" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+              Import JSON
+              <input type="file" id="importFile" accept="application/json" style="display:none;">
+            </label>
+            <button class="btn danger" id="wipeBtn">Wipe All</button>
+          </div>
+        </div>
+
+        <div class="topstats">
+          <div class="stat"><div class="k">Total Attempts</div><div class="v" id="statAttempts">0</div></div>
+          <div class="stat"><div class="k">≤ 21 Count</div><div class="v" id="statLe21">0</div></div>
+        </div>
+
+        <div style="overflow:auto; border-radius: 12px; border:1px solid var(--line);">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Date/Time</th>
+                <th>Date</th>
+                <th class="right">Attempt #</th>
+                <th class="right">Total</th>
+                <th>Speed</th>
+                <th>Moisture</th>
+                <th>Dropdown 3</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerBody"></tbody>
+          </table>
+        </div>
+
+        <div class="hint">
+          “≤ 21” is calculated from totals. Highlighting is built in (green text).
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/** ----- Config ----- **/
+const STORAGE_KEY = "lag_putts_tracker_v1";
+/** Customize your 3rd dropdown label + options here */
+const DROPDOWN3 = {
+  label: "Slope",            // change me (e.g., "Wind", "Green Firmness", etc.)
+  options: ["flat", "uphill", "downhill", "mixed"] // change me
+};
+
+/** ----- State ----- **/
+let state = loadState();
+function defaultState(){
+  return { ledger: [] };
+}
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : defaultState();
+  } catch {
+    return defaultState();
+  }
+}
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+/** ----- UI Build: Holes 1..9 ----- **/
+const holesBody = document.getElementById("holesBody");
+const holeInputs = [];
+for(let i=1;i<=9;i++){
+  const tr = document.createElement("tr");
+  const td1 = document.createElement("td");
+  td1.textContent = i;
+  const td2 = document.createElement("td");
+  td2.className = "right";
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = "0";
+  input.step = "1";
+  input.inputMode = "numeric";
+  input.placeholder = "";
+  input.addEventListener("input", updateTotal);
+  td2.appendChild(input);
+  tr.appendChild(td1);
+  tr.appendChild(td2);
+  holesBody.appendChild(tr);
+  holeInputs.push(input);
+}
+
+/** dropdown3 setup */
+document.getElementById("d3Label").textContent = DROPDOWN3.label;
+const d3 = document.getElementById("d3");
+d3.innerHTML = `<option value="">—</option>` + DROPDOWN3.options.map(o=>`<option>${escapeHtml(o)}</option>`).join("");
+
+/** ----- Helpers ----- **/
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function todayKey(dateObj){
+  // local date YYYY-MM-DD
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth()+1).padStart(2,"0");
+  const d = String(dateObj.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+function formatDateTime(d){
+  return d.toLocaleString(undefined, { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+}
+
+/** ----- Total calc ----- **/
+const totalEl = document.getElementById("total");
+function updateTotal(){
+  const sum = holeInputs.reduce((acc, el) => acc + (parseInt(el.value,10) || 0), 0);
+  totalEl.textContent = sum;
+}
+updateTotal();
+
+/** ----- Attempt # for day ----- **/
+const attemptPill = document.getElementById("attemptPill");
+function getAttemptNumberForDate(dateStr){
+  // attempt count for that date + 1
+  const count = state.ledger.filter(r => r.date === dateStr).length;
+  return count + 1;
+}
+function refreshAttemptPill(){
+  const dateStr = todayKey(new Date());
+  attemptPill.textContent = `Today's attempt: #${getAttemptNumberForDate(dateStr)}`;
+}
+refreshAttemptPill();
+
+/** ----- Logging ----- **/
+const statusEl = document.getElementById("status");
+document.getElementById("logBtn").addEventListener("click", () => {
+  const now = new Date();
+  const dateStr = todayKey(now);
+  const total = parseInt(totalEl.textContent,10) || 0;
+
+  // Optional validation: ensure at least one hole entered
+  const anyEntered = holeInputs.some(el => (el.value !== "" && el.value != null));
+  if(!anyEntered){
+    setStatus("Enter at least one putt value before logging.", true);
+    return;
+  }
+
+  const speed = document.getElementById("speed").value || "";
+  const moisture = document.getElementById("moisture").value || "";
+  const d3v = document.getElementById("d3").value || "";
+
+  const attempt = getAttemptNumberForDate(dateStr);
+
+  state.ledger.unshift({
+    ts: now.toISOString(),
+    tsLabel: formatDateTime(now),
+    date: dateStr,
+    attempt,
+    total,
+    speed,
+    moisture,
+    d3: d3v
+  });
+
+  saveState();
+  renderLedger();
+  clearEntry(); // clears putts (as requested)
+  refreshAttemptPill();
+  setStatus("Logged ✔", false);
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  clearEntry();
+  setStatus("Cleared entry.", false);
+});
+
+function clearEntry(){
+  holeInputs.forEach(el => el.value = "");
+  updateTotal();
+}
+
+/** ----- Ledger render + stats ----- **/
+const ledgerBody = document.getElementById("ledgerBody");
+function renderLedger(){
+  ledgerBody.innerHTML = "";
+  for(const r of state.ledger){
+    const tr = document.createElement("tr");
+
+    const le21 = (typeof r.total === "number" && r.total <= 21);
+    const totalCell = `<td class="right ${le21 ? 'tag21':''}">${r.total ?? ""}</td>`;
+
+    tr.innerHTML = `
+      <td>${escapeHtml(r.tsLabel || "")}</td>
+      <td>${escapeHtml(r.date || "")}</td>
+      <td class="right">${escapeHtml(r.attempt ?? "")}</td>
+      ${totalCell}
+      <td>${escapeHtml(r.speed || "")}</td>
+      <td>${escapeHtml(r.moisture || "")}</td>
+      <td>${escapeHtml(r.d3 || "")}</td>
+    `;
+    ledgerBody.appendChild(tr);
+  }
+
+  document.getElementById("statAttempts").textContent = state.ledger.length;
+  document.getElementById("statLe21").textContent =
+    state.ledger.filter(r => typeof r.total === "number" && r.total <= 21).length;
+}
+renderLedger();
+
+/** ----- Export / Import / Wipe ----- **/
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `lag-putts-ledger-${todayKey(new Date())}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setStatus("Exported JSON.", false);
+});
+
+document.getElementById("importFile").addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  if(!file) return;
+  try {
+    const text = await file.text();
+    const incoming = JSON.parse(text);
+    if(!incoming || !Array.isArray(incoming.ledger)) throw new Error("Invalid format");
+    state = incoming;
+    saveState();
+    renderLedger();
+    refreshAttemptPill();
+    setStatus("Imported JSON ✔", false);
+  } catch (err) {
+    setStatus("Import failed: " + err.message, true);
+  } finally {
+    e.target.value = "";
+  }
+});
+
+document.getElementById("wipeBtn").addEventListener("click", () => {
+  const ok = confirm("Wipe all saved ledger entries? This cannot be undone.");
+  if(!ok) return;
+  state = defaultState();
+  saveState();
+  renderLedger();
+  refreshAttemptPill();
+  setStatus("Wiped all data.", false);
+});
+
+/** ----- Status helper ----- **/
+function setStatus(msg, isError){
+  statusEl.textContent = msg;
+  statusEl.style.color = isError ? "#fca5a5" : "#9aa4b2";
+  clearTimeout(setStatus._t);
+  setStatus._t = setTimeout(()=>{ statusEl.textContent=""; }, 2500);
+}
+</script>
+</body>
+</html>

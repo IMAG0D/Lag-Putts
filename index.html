@@ -2,51 +2,235 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Lag Putts Tracker</title>
+
   <style>
-    :root { --bg:#0b0f14; --card:#121826; --text:#e6edf3; --muted:#9aa4b2; --accent:#3b82f6; --good:#22c55e; --line:#223044; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--text); }
-    .wrap { max-width: 900px; margin: 0 auto; padding: 18px; }
-    h1 { font-size: 20px; margin: 0 0 12px; }
-    .grid { display:grid; gap:12px; grid-template-columns: 1fr; }
-    @media (min-width: 860px){ .grid { grid-template-columns: 360px 1fr; align-items:start; } }
-    .card { background:var(--card); border:1px solid var(--line); border-radius: 14px; padding: 14px; box-shadow: 0 8px 18px rgba(0,0,0,.25); }
-    table { width:100%; border-collapse: collapse; }
-    th, td { padding: 10px 8px; border-bottom:1px solid var(--line); }
-    th { text-align:left; color:var(--muted); font-weight:600; }
-    input[type="number"] { width: 90px; padding:8px; border-radius:10px; border:1px solid var(--line); background:#0e1420; color:var(--text); }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    label { color: var(--muted); font-size: 12px; display:block; margin-bottom:6px; }
-    select, input[type="text"] { padding:10px; border-radius:10px; border:1px solid var(--line); background:#0e1420; color:var(--text); min-width: 160px; }
-    .btn { cursor:pointer; border:0; padding: 12px 14px; border-radius: 12px; background: var(--accent); color: white; font-weight:700; }
-    .btn.secondary { background: transparent; border:1px solid var(--line); color: var(--text); }
-    .btn.danger { background:#ef4444; }
-    .total { font-size: 22px; font-weight: 800; margin-left:auto; }
-    .pill { font-size: 12px; padding: 6px 10px; border-radius: 999px; border:1px solid var(--line); color: var(--muted); }
-    .ok { color: var(--good); border-color: rgba(34,197,94,.35); }
-    .muted { color: var(--muted); }
-    .ledger th, .ledger td { padding: 8px 8px; }
-    .right { text-align:right; }
-    .topstats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 10px; }
-    .stat { background:#0e1420; border:1px solid var(--line); border-radius: 12px; padding:10px 12px; min-width: 160px;}
-    .stat .k { color: var(--muted); font-size: 12px; }
-    .stat .v { font-size: 18px; font-weight: 800; margin-top: 3px; }
-    .hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.35; }
-    .tag21 { font-weight:800; color: var(--good); }
-    .small { font-size: 12px; }
+    :root{
+      --bg:#0b0f14; --card:#121826; --text:#e6edf3; --muted:#9aa4b2;
+      --accent:#3b82f6; --good:#22c55e; --danger:#ef4444; --line:#223044;
+      --chip:#0e1420;
+    }
+    *{ box-sizing:border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background:var(--bg); color:var(--text);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    /* Prevent iOS zoom-on-focus by keeping inputs >= 16px */
+    input, select, button{ font-size:16px; }
+
+    .wrap{
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 14px;
+      padding-bottom: calc(92px + env(safe-area-inset-bottom)); /* room for sticky bar */
+    }
+
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; margin-bottom:12px;
+    }
+    h1{ font-size:18px; margin:0; letter-spacing:.2px; }
+    .pill{
+      font-size:12px; padding:6px 10px; border-radius:999px;
+      border:1px solid var(--line); color:var(--muted);
+      background: rgba(255,255,255,.02);
+      white-space: nowrap;
+    }
+
+    .grid{ display:grid; gap:12px; grid-template-columns: 1fr; }
+    @media (min-width: 860px){
+      .wrap{ padding:18px; padding-bottom: 18px; }
+      .grid{ grid-template-columns: 360px 1fr; align-items:start; }
+      .stickybar{ display:none; }
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.28);
+    }
+
+    /* Entry table: very tappable */
+    table{ width:100%; border-collapse: collapse; }
+    th, td{ padding: 10px 8px; border-bottom:1px solid var(--line); }
+    th{ text-align:left; color:var(--muted); font-weight:650; }
+    .right{ text-align:right; }
+
+    .holeRow td{ padding-top: 12px; padding-bottom: 12px; }
+    .holeNum{ font-weight: 650; }
+    .puttInput{
+      width: 96px;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background:#0e1420;
+      color:var(--text);
+      text-align: right;
+    }
+    .puttInput:focus{
+      outline: none;
+      border-color: rgba(59,130,246,.65);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.18);
+    }
+
+    .total{
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing:.3px;
+    }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+    label{ color: var(--muted); font-size: 12px; display:block; margin-bottom:6px; }
+    select{
+      padding: 12px 12px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background:#0e1420;
+      color:var(--text);
+      min-width: 150px;
+    }
+    select:focus{
+      outline: none;
+      border-color: rgba(59,130,246,.65);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.18);
+    }
+
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+      line-height: 1.35;
+    }
+
+    .btn{
+      cursor:pointer;
+      border:0;
+      padding: 13px 14px;
+      border-radius: 14px;
+      background: var(--accent);
+      color: white;
+      font-weight: 800;
+      letter-spacing:.2px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .06s ease;
+    }
+    .btn:active{ transform: scale(.98); }
+    .btn.secondary{
+      background: transparent;
+      border:1px solid var(--line);
+      color: var(--text);
+      font-weight: 750;
+    }
+    .btn.danger{ background: var(--danger); }
+
+    /* Ledger */
+    .topstats{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 10px; }
+    .stat{
+      background:var(--chip);
+      border:1px solid var(--line);
+      border-radius: 14px;
+      padding:10px 12px;
+      min-width: 150px;
+      flex: 1;
+    }
+    .stat .k{ color: var(--muted); font-size: 12px; }
+    .stat .v{ font-size: 18px; font-weight: 900; margin-top: 3px; }
+
+    .ledgerWrap{
+      overflow:auto;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.12);
+    }
+    .ledger th, .ledger td{ padding: 10px 10px; white-space: nowrap; }
+    .tag21{ font-weight:900; color: var(--good); }
+    .small{ font-size: 12px; color: var(--muted); }
+
+    .disclosure{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      cursor:pointer;
+      user-select:none;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.02);
+      margin-bottom: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .chev{ color: var(--muted); font-weight:900; }
+
+    /* Sticky bottom bar (mobile) */
+    .stickybar{
+      position: fixed;
+      left: 0; right: 0;
+      bottom: 0;
+      padding: 10px 12px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      background: rgba(11,15,20,.78);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(34,48,68,.65);
+      z-index: 50;
+    }
+    .stickyInner{
+      max-width: 900px;
+      margin: 0 auto;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .stickyTotal{
+      margin-left:auto;
+      font-weight: 950;
+      font-size: 20px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      min-width: 92px;
+      text-align:center;
+    }
+    .statusToast{
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(18,24,38,.92);
+      color: var(--text);
+      font-weight: 750;
+      display:none;
+      z-index: 60;
+      max-width: calc(100% - 24px);
+      text-align:center;
+    }
+    .statusToast.error{ color: #fecaca; border-color: rgba(239,68,68,.35); }
   </style>
 </head>
+
 <body>
   <div class="wrap">
-    <h1>Lag Putts Game Tracker</h1>
+    <header>
+      <h1>Lag Putts Tracker</h1>
+      <div id="attemptPill" class="pill"></div>
+    </header>
 
     <div class="grid">
       <!-- Entry -->
-      <div class="card">
+      <section class="card">
         <div class="row" style="justify-content:space-between; margin-bottom:8px;">
           <div class="pill">Entry</div>
-          <div id="attemptPill" class="pill"></div>
+          <div id="todayPill" class="pill"></div>
         </div>
 
         <table>
@@ -80,39 +264,34 @@
           </div>
 
           <div>
-            <label id="d3Label">Slope</label>
-            <select id="d3">
-              <option value="">—</option>
-              <option>option A</option>
-              <option>option B</option>
-              <option>option C</option>
-            </select>
+            <label id="d3Label">Dropdown 3</label>
+            <select id="d3"></select>
           </div>
         </div>
 
-        <div class="row" style="margin-top:14px;">
-          <button class="btn" id="logBtn">Log</button>
-          <button class="btn secondary" id="clearBtn">Clear</button>
-          <span id="status" class="muted small"></span>
+        <!-- Desktop buttons (hidden on mobile by sticky bar) -->
+        <div class="row" style="margin-top:14px; display:none;" id="desktopButtons">
+          <button class="btn" id="logBtnDesktop">Log</button>
+          <button class="btn secondary" id="clearBtnDesktop">Clear</button>
+          <span id="statusInline" class="small"></span>
         </div>
 
         <div class="hint">
-          Logs: <span class="tag21">date/time</span>, total, dropdowns, and the attempt number for that day.  
-          Data is saved in your browser (LocalStorage).
+          Tip: enter a hole → press <b>Next</b> on the iPhone keypad to jump to the next hole.
         </div>
-      </div>
+      </section>
 
       <!-- Ledger -->
-      <div class="card">
+      <section class="card">
         <div class="row" style="justify-content:space-between; margin-bottom:10px;">
           <div class="pill">Ledger</div>
           <div class="row">
-            <button class="btn secondary" id="exportBtn">Export JSON</button>
-            <label class="btn secondary" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-              Import JSON
+            <button class="btn secondary" id="exportBtn">Export</button>
+            <label class="btn secondary" style="display:inline-flex; align-items:center; gap:8px;">
+              Import
               <input type="file" id="importFile" accept="application/json" style="display:none;">
             </label>
-            <button class="btn danger" id="wipeBtn">Wipe All</button>
+            <button class="btn danger" id="wipeBtn">Wipe</button>
           </div>
         </div>
 
@@ -121,49 +300,75 @@
           <div class="stat"><div class="k">≤ 21 Count</div><div class="v" id="statLe21">0</div></div>
         </div>
 
-        <div style="overflow:auto; border-radius: 12px; border:1px solid var(--line);">
-          <table class="ledger">
-            <thead>
-              <tr>
-                <th>Date/Time</th>
-                <th>Date</th>
-                <th class="right">Attempt #</th>
-                <th class="right">Total</th>
-                <th>Speed</th>
-                <th>Moisture</th>
-                <th>Slope</th>
-              </tr>
-            </thead>
-            <tbody id="ledgerBody"></tbody>
-          </table>
+        <div class="disclosure" id="ledgerToggle">
+          <div>
+            <div style="font-weight:900;">Ledger entries</div>
+            <div class="small" id="ledgerSub">Showing last 10</div>
+          </div>
+          <div class="chev" id="ledgerChev">▾</div>
+        </div>
+
+        <div id="ledgerPanel" style="display:none;">
+          <div class="row" style="margin-bottom:10px;">
+            <button class="btn secondary" id="show10Btn">Show last 10</button>
+            <button class="btn secondary" id="showAllBtn">Show all</button>
+          </div>
+
+          <div class="ledgerWrap">
+            <table class="ledger">
+              <thead>
+                <tr>
+                  <th>Date/Time</th>
+                  <th>Date</th>
+                  <th class="right">Attempt #</th>
+                  <th class="right">Total</th>
+                  <th>Speed</th>
+                  <th>Moisture</th>
+                  <th>Dropdown 3</th>
+                </tr>
+              </thead>
+              <tbody id="ledgerBody"></tbody>
+            </table>
+          </div>
         </div>
 
         <div class="hint">
-          “≤ 21” is calculated from totals. Highlighting is built in (green text).
+          Data saves to this device/browser (LocalStorage). Export/Import lets you move it between phone/PC.
         </div>
-      </div>
+      </section>
     </div>
   </div>
 
+  <!-- Mobile Sticky Bar -->
+  <div class="stickybar" id="stickyBar">
+    <div class="stickyInner">
+      <button class="btn" id="logBtn">Log</button>
+      <button class="btn secondary" id="clearBtn">Clear</button>
+      <div class="stickyTotal" id="stickyTotal">0</div>
+    </div>
+  </div>
+
+  <div class="statusToast" id="toast"></div>
+
 <script>
 /** ----- Config ----- **/
-const STORAGE_KEY = "lag_putts_tracker_v1";
-/** Customize your 3rd dropdown label + options here */
+const STORAGE_KEY = "lag_putts_tracker_v2_mobile";
 const DROPDOWN3 = {
-  label: "Slope",            // change me (e.g., "Wind", "Green Firmness", etc.)
-  options: ["flat", "uphill", "downhill", "mixed"] // change me
+  label: "Slope",                         // rename + set options
+  options: ["flat", "uphill", "downhill", "mixed"]
 };
 
 /** ----- State ----- **/
 let state = loadState();
-function defaultState(){
-  return { ledger: [] };
-}
+let ledgerView = { limit: 10 }; // default mobile-friendly view
+
+function defaultState(){ return { ledger: [] }; }
+
 function loadState(){
-  try {
+  try{
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : defaultState();
-  } catch {
+  }catch{
     return defaultState();
   }
 }
@@ -171,22 +376,61 @@ function saveState(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-/** ----- UI Build: Holes 1..9 ----- **/
+/** ----- UI helpers ----- **/
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function todayKey(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function formatDateTime(d){
+  return d.toLocaleString(undefined, { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+}
+
+/** ----- Build holes 1..9 (mobile-friendly inputs) ----- **/
 const holesBody = document.getElementById("holesBody");
 const holeInputs = [];
 for(let i=1;i<=9;i++){
   const tr = document.createElement("tr");
+  tr.className = "holeRow";
+
   const td1 = document.createElement("td");
-  td1.textContent = i;
+  td1.innerHTML = `<span class="holeNum">${i}</span>`;
+
   const td2 = document.createElement("td");
   td2.className = "right";
+
   const input = document.createElement("input");
+  input.className = "puttInput";
   input.type = "number";
   input.min = "0";
   input.step = "1";
   input.inputMode = "numeric";
+  input.autocomplete = "off";
   input.placeholder = "";
-  input.addEventListener("input", updateTotal);
+
+  // iOS "Next" behaviour
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      focusNext(i);
+    }
+  });
+
+  // auto-advance when a single digit entered (most putts are 1-5)
+  input.addEventListener("input", () => {
+    updateTotal();
+    // If user typed something and it's not the last hole, optionally jump next.
+    // This is conservative: only jump if value length >= 1 and the cursor isn't mid-edit.
+    if (input.value.length >= 1 && i < 9) {
+      // small delay so iOS finishes updating caret
+      setTimeout(() => focusNext(i), 60);
+    }
+  });
+
   td2.appendChild(input);
   tr.appendChild(td1);
   tr.appendChild(td2);
@@ -194,65 +438,74 @@ for(let i=1;i<=9;i++){
   holeInputs.push(input);
 }
 
+function focusNext(currentHole){
+  const idx = currentHole; // because holes are 1-based
+  if (idx < holeInputs.length) holeInputs[idx].focus();
+}
+
 /** dropdown3 setup */
 document.getElementById("d3Label").textContent = DROPDOWN3.label;
 const d3 = document.getElementById("d3");
-d3.innerHTML = `<option value="">—</option>` + DROPDOWN3.options.map(o=>`<option>${escapeHtml(o)}</option>`).join("");
+d3.innerHTML = `<option value="">—</option>` + DROPDOWN3.options.map(o => `<option>${escapeHtml(o)}</option>`).join("");
 
-/** ----- Helpers ----- **/
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-function todayKey(dateObj){
-  // local date YYYY-MM-DD
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth()+1).padStart(2,"0");
-  const d = String(dateObj.getDate()).padStart(2,"0");
-  return `${y}-${m}-${d}`;
-}
-function formatDateTime(d){
-  return d.toLocaleString(undefined, { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
-}
-
-/** ----- Total calc ----- **/
+/** ----- Total calc (sync main + sticky) ----- **/
 const totalEl = document.getElementById("total");
+const stickyTotal = document.getElementById("stickyTotal");
+
 function updateTotal(){
   const sum = holeInputs.reduce((acc, el) => acc + (parseInt(el.value,10) || 0), 0);
   totalEl.textContent = sum;
+  stickyTotal.textContent = sum;
 }
 updateTotal();
 
 /** ----- Attempt # for day ----- **/
 const attemptPill = document.getElementById("attemptPill");
+const todayPill = document.getElementById("todayPill");
+
 function getAttemptNumberForDate(dateStr){
-  // attempt count for that date + 1
   const count = state.ledger.filter(r => r.date === dateStr).length;
   return count + 1;
 }
-function refreshAttemptPill(){
-  const dateStr = todayKey(new Date());
-  attemptPill.textContent = `Today's attempt: #${getAttemptNumberForDate(dateStr)}`;
-}
-refreshAttemptPill();
-
-/** ----- Logging ----- **/
-const statusEl = document.getElementById("status");
-document.getElementById("logBtn").addEventListener("click", () => {
+function refreshAttemptPills(){
   const now = new Date();
   const dateStr = todayKey(now);
-  const total = parseInt(totalEl.textContent,10) || 0;
+  const attempt = getAttemptNumberForDate(dateStr);
+  attemptPill.textContent = `Today: #${attempt}`;
+  todayPill.textContent = dateStr;
+}
+refreshAttemptPills();
 
-  // Optional validation: ensure at least one hole entered
-  const anyEntered = holeInputs.some(el => (el.value !== "" && el.value != null));
+/** ----- Toast ----- **/
+const toast = document.getElementById("toast");
+function showToast(msg, isError=false){
+  toast.textContent = msg;
+  toast.className = "statusToast" + (isError ? " error" : "");
+  toast.style.display = "block";
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> toast.style.display="none", 2200);
+}
+
+/** ----- Log / Clear ----- **/
+function clearEntry(){
+  holeInputs.forEach(el => el.value = "");
+  updateTotal();
+}
+
+function logAttempt(){
+  const now = new Date();
+  const dateStr = todayKey(now);
+
+  const anyEntered = holeInputs.some(el => el.value !== "");
   if(!anyEntered){
-    setStatus("Enter at least one putt value before logging.", true);
+    showToast("Enter at least one putt value before logging.", true);
     return;
   }
 
+  const total = parseInt(totalEl.textContent,10) || 0;
   const speed = document.getElementById("speed").value || "";
   const moisture = document.getElementById("moisture").value || "";
   const d3v = document.getElementById("d3").value || "";
-
   const attempt = getAttemptNumberForDate(dateStr);
 
   state.ledger.unshift({
@@ -268,36 +521,43 @@ document.getElementById("logBtn").addEventListener("click", () => {
 
   saveState();
   renderLedger();
-  clearEntry(); // clears putts (as requested)
-  refreshAttemptPill();
-  setStatus("Logged ✔", false);
-});
-
-document.getElementById("clearBtn").addEventListener("click", () => {
   clearEntry();
-  setStatus("Cleared entry.", false);
-});
-
-function clearEntry(){
-  holeInputs.forEach(el => el.value = "");
-  updateTotal();
+  refreshAttemptPills();
+  showToast("Logged ✔");
 }
 
-/** ----- Ledger render + stats ----- **/
+document.getElementById("logBtn").addEventListener("click", logAttempt);
+document.getElementById("clearBtn").addEventListener("click", () => { clearEntry(); showToast("Cleared"); });
+
+/** Desktop buttons (auto show on wide screens) */
+const desktopButtons = document.getElementById("desktopButtons");
+const stickyBar = document.getElementById("stickyBar");
+function refreshDesktopMobileUI(){
+  const wide = window.matchMedia("(min-width: 860px)").matches;
+  desktopButtons.style.display = wide ? "flex" : "none";
+  stickyBar.style.display = wide ? "none" : "block";
+}
+refreshDesktopMobileUI();
+window.addEventListener("resize", refreshDesktopMobileUI);
+
+document.getElementById("logBtnDesktop").addEventListener("click", logAttempt);
+document.getElementById("clearBtnDesktop").addEventListener("click", () => { clearEntry(); showToast("Cleared"); });
+
+/** ----- Ledger render + stats (mobile defaults to last 10) ----- **/
 const ledgerBody = document.getElementById("ledgerBody");
 function renderLedger(){
   ledgerBody.innerHTML = "";
-  for(const r of state.ledger){
+
+  const rows = (ledgerView.limit ? state.ledger.slice(0, ledgerView.limit) : state.ledger);
+
+  for(const r of rows){
     const tr = document.createElement("tr");
-
     const le21 = (typeof r.total === "number" && r.total <= 21);
-    const totalCell = `<td class="right ${le21 ? 'tag21':''}">${r.total ?? ""}</td>`;
-
     tr.innerHTML = `
       <td>${escapeHtml(r.tsLabel || "")}</td>
       <td>${escapeHtml(r.date || "")}</td>
       <td class="right">${escapeHtml(r.attempt ?? "")}</td>
-      ${totalCell}
+      <td class="right ${le21 ? "tag21" : ""}">${escapeHtml(r.total ?? "")}</td>
       <td>${escapeHtml(r.speed || "")}</td>
       <td>${escapeHtml(r.moisture || "")}</td>
       <td>${escapeHtml(r.d3 || "")}</td>
@@ -308,8 +568,34 @@ function renderLedger(){
   document.getElementById("statAttempts").textContent = state.ledger.length;
   document.getElementById("statLe21").textContent =
     state.ledger.filter(r => typeof r.total === "number" && r.total <= 21).length;
+
+  const sub = document.getElementById("ledgerSub");
+  sub.textContent = ledgerView.limit ? `Showing last ${Math.min(ledgerView.limit, state.ledger.length)}` : `Showing all (${state.ledger.length})`;
 }
 renderLedger();
+
+/** Ledger disclosure + view controls */
+const ledgerToggle = document.getElementById("ledgerToggle");
+const ledgerPanel = document.getElementById("ledgerPanel");
+const ledgerChev = document.getElementById("ledgerChev");
+
+ledgerToggle.addEventListener("click", () => {
+  const open = ledgerPanel.style.display !== "none";
+  ledgerPanel.style.display = open ? "none" : "block";
+  ledgerChev.textContent = open ? "▾" : "▴";
+});
+
+document.getElementById("show10Btn").addEventListener("click", () => {
+  ledgerView.limit = 10;
+  renderLedger();
+  showToast("Showing last 10");
+});
+
+document.getElementById("showAllBtn").addEventListener("click", () => {
+  ledgerView.limit = null;
+  renderLedger();
+  showToast("Showing all");
+});
 
 /** ----- Export / Import / Wipe ----- **/
 document.getElementById("exportBtn").addEventListener("click", () => {
@@ -322,24 +608,24 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  setStatus("Exported JSON.", false);
+  showToast("Exported");
 });
 
 document.getElementById("importFile").addEventListener("change", async (e) => {
   const file = e.target.files?.[0];
   if(!file) return;
-  try {
+  try{
     const text = await file.text();
     const incoming = JSON.parse(text);
     if(!incoming || !Array.isArray(incoming.ledger)) throw new Error("Invalid format");
     state = incoming;
     saveState();
     renderLedger();
-    refreshAttemptPill();
-    setStatus("Imported JSON ✔", false);
-  } catch (err) {
-    setStatus("Import failed: " + err.message, true);
-  } finally {
+    refreshAttemptPills();
+    showToast("Imported ✔");
+  }catch(err){
+    showToast("Import failed: " + err.message, true);
+  }finally{
     e.target.value = "";
   }
 });
@@ -350,17 +636,12 @@ document.getElementById("wipeBtn").addEventListener("click", () => {
   state = defaultState();
   saveState();
   renderLedger();
-  refreshAttemptPill();
-  setStatus("Wiped all data.", false);
+  refreshAttemptPills();
+  showToast("Wiped");
 });
 
-/** ----- Status helper ----- **/
-function setStatus(msg, isError){
-  statusEl.textContent = msg;
-  statusEl.style.color = isError ? "#fca5a5" : "#9aa4b2";
-  clearTimeout(setStatus._t);
-  setStatus._t = setTimeout(()=>{ statusEl.textContent=""; }, 2500);
-}
+/** Focus first hole on load (nice on mobile) */
+setTimeout(()=> holeInputs[0].focus(), 350);
 </script>
 </body>
 </html>
